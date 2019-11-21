@@ -5,7 +5,7 @@ import json
 import operator
 
 evanid = '126614655'
-datadir = '/home/eddelord/Documents/spotify/data/topArtists/'
+datadir = './data/topArtists/'
 recThres = .001
 # options for recommendation 
 multiRankBias = False  # preference to artists in more than one ranking
