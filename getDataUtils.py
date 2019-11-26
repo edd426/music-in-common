@@ -9,14 +9,16 @@ LIB_LIMIT = 10000
 # sp requires user-top-read
 # if retDict is passed in
 def getTopArtists(sp, retDict = None, store=True):
+
     myDict = {}
 
     # TODO take out this api call
     userdata = getUser(sp)
     myDict['id'] = userdata['id']
     myDict['display_name'] = userdata['display_name']
+    
 
-    for term in ['long_term', 'medium_term', 'short_term']:
+    for term in ['short_term', 'medium_term', 'long_term']:
         all_artists = []
         results = sp.current_user_top_artists(limit=49, offset=0, time_range=term)
         all_artists += results['items']
@@ -37,6 +39,41 @@ def getTopArtists(sp, retDict = None, store=True):
 
     return retDict
 
+
+def printUserTopArtists(mydata):
+    
+    sortedArtists ={'short_term':99*[""], 'medium_term':99*[""], 'long_term':99*[""]}
+    print("%%%Top Artists of " + mydata['display_name']+"%%%")
+    retStr = "<pre>\n"
+    retStr += "{:<30s}\n".format("%%%Top Artists of " + mydata['display_name']+"%%%")
+    retStr += "{:<6}{:<30s}{:<30s}{:<30s}\n".format(
+            "Rank",
+            "Short Term (4 Weeks)", 
+            "Medium Term (6 Months)",
+            "Long Term (All Time)")
+
+    for term in ['short_term', 'medium_term', 'long_term']:
+        all_artists = mydata['top_artists_'+term]
+        counter = 0
+        for a in all_artists:
+            sortedArtists[term][counter]=a['name']
+            counter+=1
+    counter = 0
+    for a in range(99):
+        tmpStr = "{:<6s}{:<30s}{:<30s}{:<30s}\n".format(
+                str(counter + 1),
+                sortedArtists['short_term'][counter],
+                sortedArtists['medium_term'][counter],
+                sortedArtists['long_term'][counter]
+            )
+        counter += 1
+        print(tmpStr)
+        retStr+=tmpStr
+    retStr +='</pre>'
+
+    return retStr
+
+
 def loadTopArtists(loadid):
 
     datadir = '/home/eddelord/Documents/spotify/data/topArtists/'
@@ -46,6 +83,7 @@ def loadTopArtists(loadid):
 
 
 def getTopTracks(sp, retDict=None, store=True):
+    
     myDict = {}
     userdata = getUser(sp)
     myDict['id'] = userdata['id']
@@ -129,6 +167,7 @@ def getFollowArtists(sp, retDict=None, store=True):
         retDict.update(myDict)
 
     return retDict
+
 
 def getUser(sp, retDict=None):
     userdata = sp.current_user()

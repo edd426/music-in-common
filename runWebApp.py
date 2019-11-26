@@ -6,7 +6,6 @@ import json
 from getDataUtils import *
 from processDataUtils import *
 import os
-print()
 
 PORT_NUMBER = 8080
 SPOTIPY_CLIENT_ID = os.environ['SPOTIPY_CLIENT_ID']
@@ -41,14 +40,17 @@ def index():
     if access_token:
         print("Access token available! Trying to get user information...")
         sp = spotipy.Spotify(auth=access_token)
-        dat = getTopArtists(sp)
-        #dat = loadTopArtists('21pbazi5mi3fymvmqcir7ntei') #allen.delord2017 #116981000 #116981000 #21pbazi5mi3fymvmqcir7ntei
-        dat = getTopTracks(sp, retDict=dat)
+        #dat = getTopArtists(sp)
+        dat = loadTopArtists('allen.delord2017') #allen.delord2017 #116981000 #21pbazi5mi3fymvmqcir7ntei
+        outstr =printUserTopArtists(dat)
+        #dat = getTopTracks(sp, retDict=dat)
         #dat = getLibraryTracks(sp, retDict=dat)
-        dat = getFollowArtists(sp, retDict=dat)
+        #dat = getFollowArtists(sp, retDict=dat)
         dat = processTopArtists(dat)
-        dat = processTopGenres(dat) # process Top Artists must come before. Bad Design
-        outstr = printSharedTopArtists(dat)
+        dat = processTopGenres(sp, dat) # process Top Artists must come before. Bad Design
+        outstr +=printUserTopGenre(dat)
+        outstr +=printUserDistinctGenre(dat)
+        outstr +=printSharedTopArtists(dat)
         outstr +=printSharedTopGenre(dat)
         outstr +=printRecommendedArtists(dat)
 

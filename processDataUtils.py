@@ -3,6 +3,7 @@ from spotipy import oauth2
 import pprint
 import json
 import operator
+import os
 
 evanid = '126614655'
 datadir = './data/topArtists/'
@@ -44,37 +45,51 @@ def processTopArtists(mydata):
     mydata['pTopArtists'] = myTopArtists
     return mydata
 
-def processTopGenres(mydata):
+def processTopGenres(sp, mydata, store=True):
     users = [evanid, mydata['id']]
     tmp = mydata['pTopArtists']
+    genreCountFile = './data/genreCount/genreCount.json'
 
+    genreCounts = {}
+    if os.path.isfile(genreCountFile):
+        with open(genreCountFile, 'r') as f:
+            countTmp = json.load(f)
+        genreCounts.update(countTmp)
     user1Genre = {}
-    user1NumArtists = float(len(tmp[users[0]]))
+    #user1NumArtists = float(len(tmp[users[0]]))
     for ar in tmp[users[0]]:
         for g in tmp[users[0]][ar]['genres']:
             if g not in user1Genre:
                 user1Genre[g] = 0
+                if g not in genreCounts:
+                    genreCounts[g] = sp.search(q="genre:\""+g+"\"", offset=0, limit=1, type='artist')['artists']['total']
             user1Genre[g] +=1
 
 
     user2Genre = {}
-    user2NumArtists = float(len(tmp[users[1]]))
+    #user2NumArtists = float(len(tmp[users[1]]))
     for ar in tmp[users[1]]:
         for g in tmp[users[1]][ar]['genres']:
             if g not in user2Genre:
+                if g not in genreCounts:
+                    genreCounts[g] = sp.search(q="genre:\""+g+"\"", offset=0, limit=1, type='artist')['artists']['total']
                 user2Genre[g] = 0
             user2Genre[g] +=1
 
 
-    for g in user1Genre:
-        user1Genre[g] /= user1NumArtists
-    for g in user2Genre:
-        user2Genre[g] /= user2NumArtists
+    #for g in user1Genre:
+    #    user1Genre[g] /= user1NumArtists
+    #for g in user2Genre:
+    #    user2Genre[g] /= user2NumArtists
         
     mydata['pTopGenres'] = {}
     mydata['pTopGenres'][users[0]] = user1Genre
     mydata['pTopGenres'][users[1]] = user2Genre
+    mydata['pGenreCounts'] = genreCounts
     
+
+    with open(genreCountFile, 'w') as fout:
+        json.dump(genreCounts, fout)
 
     return mydata
 
@@ -82,12 +97,12 @@ def processTopGenres(mydata):
 def printSharedTopArtists(mydata):
     users = [evanid, mydata['id']]
     tmp = mydata['pTopArtists']
-    retstr = '<pre>\n'
-    retstr += "{:<30s}{:^20s}{:<10s}{:^20s}\n".format(" ", 
+    retStr = '<pre>\n'
+    retStr += "{:<30s}{:^20s}{:<10s}{:^20s}\n".format(" ", 
             mydata['users'][users[0]]['display_name'],
             " ",
             mydata['users'][users[1]]['display_name'])
-    retstr += "{:<30s}{:^7s}{:^7s}{:^6s}{:^10s}{:^7s}{:^7s}{:^6s}\n".format(
+    retStr += "{:<30s}{:^7s}{:^7s}{:^6s}{:^10s}{:^7s}{:^7s}{:^6s}\n".format(
             "***Shared Top Artists***",
             "short", 
             "medium",
@@ -120,16 +135,83 @@ def printSharedTopArtists(mydata):
                         str(match2['long']))
                     )
             print(tmpstr)
-            retstr += tmpstr+'\n'
-    retstr += '</pre>'
-    return retstr
+            retStr += tmpstr+'\n'
+    retStr += '</pre>'
+    return retStr
+
+
+def printUserTopGenre(mydata):
+    users = [evanid, mydata['id']]
+    tmp = mydata['pTopGenres']
+    print("%%%Top Genres of " + mydata['display_name']+"%%%")
+    retStr = "<pre>\n"
+    retStr += "{:<30s}\n".format("+++Top Genres of " + mydata['display_name']+"+++")
+    retStr += "{:<25}{:^20s}\n".format(
+            "Genre",
+            "Percentage"
+        )
+    matches = {}
+    numArtists = float(len(mydata['pTopArtists'][users[1]]))
+    for g in tmp[users[1]]:
+            # need to experiment with this, the metric it's sorted by
+            #matches[g] = tmp[users[0]][g] + tmp[users[1]][g] - (tmp[users[0]][g]- tmp[users[1]][g])**2
+        matches[g] = tmp[users[1]][g]/numArtists
+    for g in sorted(matches.items(), key=lambda kv: kv[1], reverse=True):
+        if g[1] < 0.02:
+            break
+        tmpstr = (""
+                + "{:<25s}{:^20.2%}".format(
+                    g[0],
+                    g[1]
+                    )
+                )
+        print(tmpstr)
+        retStr += tmpstr+'\n'
+    retStr += '</pre>'
+    return retStr
+
+def printUserDistinctGenre(mydata):
+    users = [evanid, mydata['id']]
+    tmp = mydata['pTopGenres']
+    tmpCounts = mydata['pGenreCounts']
+
+    print("???Distinct Genres of " + mydata['display_name']+"???")
+    retStr = "<pre>\n"
+    retStr += "{:<30s}\n".format("???Distinct Genres of " + mydata['display_name']+"???")
+    retStr += "{:<25}{:^20s}{:^20s}{:^20s}\n".format(
+            "Genre",
+            "Percentage",
+            "Your Count",
+            "All Artist Count"
+        )
+    matches = {}
+    for g in tmp[users[1]]:
+            # need to experiment with this, the metric it's sorted by
+            #matches[g] = tmp[users[0]][g] + tmp[users[1]][g] - (tmp[users[0]][g]- tmp[users[1]][g])**2
+        matches[g] = tmp[users[1]][g]/float(tmpCounts[g])
+    for g in sorted(matches.items(), key=lambda kv: kv[1], reverse=True):
+        if g[1] < 0.02:
+            break
+        tmpstr = (""
+                + "{:<25s}{:^20.2%}{:^20d}{:^20d}".format(
+                    g[0],
+                    g[1],
+                    tmp[users[1]][g[0]],
+                    tmpCounts[g[0]]
+                    )
+                )
+        print(tmpstr)
+        retStr += tmpstr+'\n'
+    retStr += '</pre>'
+    return retStr
+
 
 
 def printSharedTopGenre(mydata):
     users = [evanid, mydata['id']]
     tmp = mydata['pTopGenres']
-    retstr = '<pre>\n'
-    retstr += "{:<30s}{:^20s}{:^10s}{:^20s}\n".format(
+    retStr = '<pre>\n'
+    retStr += "{:<30s}{:^20s}{:^10s}{:^20s}\n".format(
             "---Shared Top Genres---",
             mydata['users'][users[0]]['display_name'], 
             "",
@@ -140,21 +222,23 @@ def printSharedTopGenre(mydata):
         if g in tmp[users[1]]:
             # need to experiment with this, the metric it's sorted by
             #matches[g] = tmp[users[0]][g] + tmp[users[1]][g] - (tmp[users[0]][g]- tmp[users[1]][g])**2
-            matches[g] = min(tmp[users[0]][g], tmp[users[1]][g])
+            matches[g] = min(tmp[users[0]][g] / float(mydata['pGenreCounts'][g]) , 
+                    tmp[users[1]][g] / float(mydata['pGenreCounts'][g]) )
     for g in sorted(matches.items(), key=lambda kv: kv[1], reverse=True):
         if g[1] < 0.02:
             break
         tmpstr = (""
                 + "{:<30s}{:^20.2%}{:^10s}{:^20.2%}".format(
                     g[0],
-                    tmp[users[0]][g[0]],
+                    tmp[users[0]][g[0]] / float(mydata['pGenreCounts'][g[0]]),
                     "",
-                    tmp[users[1]][g[0]])
+                    tmp[users[1]][g[0]] / float(mydata['pGenreCounts'][g[0]])
                 )
+            )
         print(tmpstr)
-        retstr += tmpstr+'\n'
-    retstr += '</pre>'
-    return retstr
+        retStr += tmpstr+'\n'
+    retStr += '</pre>'
+    return retStr
 
 def printRecommendedArtists(mydata):
     termset = {'artistshort', 'artistmedium', 'artistlong'}
@@ -162,8 +246,8 @@ def printRecommendedArtists(mydata):
     tmpA = mydata['pTopArtists']
     tmpG = mydata['pTopGenres']
     print("\n$$$Recommended Artists From Evan$$$")
-    retstr = '<pre>\n'
-    retstr += "{:<40s}{:^20s}\n".format('$$$Recommended Artists From Evan$$$', 'score')
+    retStr = '<pre>\n'
+    retStr += "{:<40s}{:^20s}\n".format('$$$Recommended Artists From Evan$$$', 'score')
 
     user1RecArtists = {}
     for a in tmpA[users[0]]:
@@ -194,13 +278,13 @@ def printRecommendedArtists(mydata):
                  tmpA[users[0]][a[0]]['name'], 
                  user1RecArtists[a[0]])
         print(tmpstr)
-        retstr += tmpstr+'\n'
-    retstr += '</pre>'
+        retStr += tmpstr+'\n'
+    retStr += '</pre>'
 
 
     print("\n@@@Artists to Recommend to Evan@@@")
-    retstr += '<pre>\n'
-    retstr += "{:<40s}{:^20s}\n".format('@@@Artists to Recommend to Evan@@@', 'score')
+    retStr += '<pre>\n'
+    retStr += "{:<40s}{:^20s}\n".format('@@@Artists to Recommend to Evan@@@', 'score')
     user2RecArtists = {}
     for a in tmpA[users[1]]:
         if a not in tmpA[users[0]]:
@@ -230,10 +314,10 @@ def printRecommendedArtists(mydata):
                 tmpA[users[1]][a[0]]['name'], 
                 user2RecArtists[a[0]])
         print(tmpstr)
-        retstr += tmpstr+'\n'
+        retStr += tmpstr+'\n'
 
-    retstr += '</pre>'
-    return retstr
+    retStr += '</pre>'
+    return retStr
 
 def loadUserData(userid):
     with open(datadir+'/'+userid+'topArtists', 'r') as f:
