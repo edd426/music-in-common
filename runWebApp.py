@@ -41,7 +41,7 @@ def index():
         print("Access token available! Trying to get user information...")
         sp = spotipy.Spotify(auth=access_token)
         #dat = getTopArtists(sp)
-        dat = loadTopArtists('allen.delord2017') #allen.delord2017 #116981000 #21pbazi5mi3fymvmqcir7ntei
+        dat = loadTopArtists('user123')
         outstr =printUserTopArtists(dat)
         #dat = getTopTracks(sp, retDict=dat)
         #dat = getLibraryTracks(sp, retDict=dat)
